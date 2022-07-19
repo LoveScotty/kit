@@ -1,8 +1,10 @@
 package eval
 
 import (
+	"bytes"
 	"math"
 	"testing"
+	"text/template"
 )
 
 func TestEval(t *testing.T) {
@@ -83,4 +85,68 @@ func TestEval(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTemplate(t *testing.T) {
+	strTmpl := `
+[
+{{- $v1 := index . "scotty_test_num" -}}
+{{- $v2 := index . "scotty_test_den" -}}
+{{- $length1 := len $v1 -}}
+{{- $length2 := len $v2 -}}
+{{- if eq $length1 $length2 -}}
+	{{- range $idx, $val := $v1 -}}
+		{{$d := index $v2 $idx}}
+		{{- if eq .date $d.date -}}
+			{{- $rate := printf "%v/%v" .data $d.data -}}
+			{{- $date := printf "%.f" .date -}}
+			{"date": "{{$date}}", "rate": {{eval $rate}}}
+			{{- $lastIdx := add $length1 -1 -}}
+			{{- if ne $idx $lastIdx -}},{{- end -}}
+		{{- end -}}
+	{{- end -}}
+{{- end -}}
+]
+`
+	tmpl, err := template.New("test").Funcs(template.FuncMap{
+		"eval": Eval,
+		"add": func(a, b int) int {
+			return a + b
+		},
+	}).Parse(strTmpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := make(map[string][]*map[string]interface{})
+	data["scotty_test_num"] = []*map[string]interface{}{
+		{
+			"date":       float64(20220713),
+			"biz_module": "scotty_test_num",
+			"data":       2,
+		},
+		{
+			"date":       float64(20220714),
+			"biz_module": "scotty_test_num",
+			"data":       1,
+		},
+	}
+	data["scotty_test_den"] = []*map[string]interface{}{
+		{
+			"date":       float64(20220713),
+			"biz_module": "scotty_test_den",
+			"data":       5,
+		},
+		{
+			"date":       float64(20220714),
+			"biz_module": "scotty_test_den",
+			"data":       2,
+		},
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("success, buf: %v\n", buf.String())
 }

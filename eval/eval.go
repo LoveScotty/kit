@@ -308,3 +308,8 @@ func (n *node) walk() float64 {
 	}
 	return 0
 }
+
+// Eval 计算
+func Eval(input string) float64 {
+	return NewLexer(input).Run()
+}
